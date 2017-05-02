@@ -27,3 +27,6 @@
 *.exe
 *.out
 *.app
+
+# Mac specific files
+.DS_Store
