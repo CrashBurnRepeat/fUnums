@@ -12,7 +12,7 @@ program setup_env_test
   call Set_unum_env (1, 20)
   call Set_unum_env (20, 20)
   ! Set with real bounds
-  call Set_unum_env (3,2)
+  call Set_unum_env (2,3)
   ! Display environmental parameters
   print *, 'esizesize'
   print *, Get_esizesize ()

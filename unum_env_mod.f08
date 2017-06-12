@@ -1,67 +1,68 @@
 module unum_env_mod
   use ISO_FORTRAN_ENV, only : INT64, REAL64
   use unum_size_limit_mod
+  use unum_t_mod
 
   implicit none
 
   private
-  integer         :: esizesize
-  integer         :: fsizesize
-  integer         :: utagsize
-  integer         :: maxubits
-  integer         :: esizemax
-  integer         :: fsizemax
-  integer (INT64) :: ubitmask = 0
-  integer (INT64) :: fsizemask = 0
-  integer (INT64) :: esizemask = 0
-  integer (INT64) :: efsizemask = 0
-  integer (INT64) :: utagmask = 0
-  integer (INT64) :: ulpu = 0
-  integer (INT64) :: smallsubnormalu = 0
-  integer (INT64) :: smallnormalu = 0
-  integer (INT64) :: signbigu = 0
-  integer (INT64) :: posinfu = 0
-  integer (INT64) :: maxrealu = 0
-  integer (INT64) :: minrealu = 0
-  integer (INT64) :: neginfu = 0
-  integer (INT64) :: negbigu = 0
-  integer (INT64) :: qNaNu = 0
-  integer (INT64) :: sNaNu = 0
-  integer (INT64) :: negopeninfu = 0
-  integer (INT64) :: posopeninfu = 0
-  integer (INT64) :: negopenzerou = 0
-  integer (INT64) :: posbig = 0
-  real (REAL64)   :: maxreal
-  real (REAL64)   :: smallsubnormal
+  integer       :: esizesize
+  integer       :: fsizesize
+  integer       :: utagsize
+  integer       :: maxubits
+  integer       :: esizemax
+  integer       :: fsizemax
+  type (unum_t) :: ubitmask
+  type (unum_t) :: fsizemask
+  type (unum_t) :: esizemask
+  type (unum_t) :: efsizemask
+  type (unum_t) :: utagmask
+  type (unum_t) :: ulpu
+  type (unum_t) :: smallsubnormalu
+  type (unum_t) :: smallnormalu
+  type (unum_t) :: signbigu
+  type (unum_t) :: posinfu
+  type (unum_t) :: maxrealu
+  type (unum_t) :: minrealu
+  type (unum_t) :: neginfu
+  type (unum_t) :: negbigu
+  type (unum_t) :: qNaNu
+  type (unum_t) :: sNaNu
+  type (unum_t) :: negopeninfu
+  type (unum_t) :: posopeninfu
+  type (unum_t) :: negopenzerou
+  type (unum_t) :: posbig
+  real (REAL64) :: maxreal
+  real (REAL64) :: smallsubnormal
 
-  public          :: Set_unum_env
-  public          :: Get_esizesize
-  public          :: Get_fsizesize
-  public          :: Get_utagsize
-  public          :: Get_maxubits
-  public          :: Get_esizemax
-  public          :: Get_fsizemax
-  public          :: Get_esizemask
-  public          :: Get_fsizemask
-  public          :: Get_efsizemask
-  public          :: Get_ubitmask
-  public          :: Get_utagmask
-  public          :: Get_ulpu
-  public          :: Get_signbigu
-  public          :: Get_posinfu
-  public          :: Get_neginfu
-  public          :: Get_negbigu
-  public          :: Get_qNaNu
-  public          :: Get_sNaNu
-  public          :: Get_negopeninfu
-  public          :: Get_posopeninfu
-  public          :: Get_negopenzerou
-  public          :: Get_posbig
-  public          :: Get_maxreal
-  public          :: Get_maxrealu
-  public          :: Get_smallsubnormal
-  public          :: Get_smallsubnormalu
-  public          :: Get_smallnormalu
+  public        :: Set_unum_env
+  public        :: Get_esizesize
+  public        :: Get_fsizesize
+  public        :: Get_utagsize
+  public        :: Get_maxubits
+  public        :: Get_esizemax
+  public        :: Get_fsizemax
+  public        :: Get_esizemask
+  public        :: Get_fsizemask
+  public        :: Get_efsizemask
+  public        :: Get_ubitmask
+  public        :: Get_utagmask
+  public        :: Get_ulpu
+  public        :: Get_signbigu
+  public        :: Get_posinfu
+  public        :: Get_neginfu
+  public        :: Get_negbigu
+  public        :: Get_qNaNu
+  public        :: Get_sNaNu
+  public        :: Get_negopeninfu
+  public        :: Get_posopeninfu
+  public        :: Get_negopenzerou
+  public        :: Get_posbig
+  public        :: Get_maxreal
+  public        :: Get_maxrealu
+  public        :: Get_smallsubnormal
+  public        :: Get_smallsubnormalu
+  public        :: Get_smallnormalu
 
 contains
   subroutine Set_unum_env (esizesize_in, fsizesize_in)
@@ -126,31 +127,31 @@ contains
     utagsize = 1 + esizesize + fsizesize
     maxubits = 1 + esizemax + fsizemax + utagsize
     ! Masks
-    ubitmask = ishft (1_INT64, utagsize - 1)
-    fsizemask = ishft (1_INT64, fsizesize) - 1
-    esizemask = (ubitmask - 1) - fsizemask
-    efsizemask = ior (fsizemask, esizemask)
-    utagmask = ior (ubitmask, efsizemask)
+    ubitmask%u = ishft (1_INT64, utagsize - 1)
+    fsizemask%u = ishft (1_INT64, fsizesize) - 1
+    esizemask%u = (ubitmask%u - 1) - fsizemask%u
+    efsizemask%u = ior (fsizemask%u, esizemask%u)
+    utagmask%u = ior (ubitmask%u, efsizemask%u)
     ! environment parameters
-    ulpu = ishft (1_INT64, utagsize)
-    smallsubnormalu = efsizemask + ulpu
-    smallnormalu = efsizemask + ishft (1_INT64, maxubits - 1 - esizemax)
-    signbigu = ishft (1_INT64, maxubits - 1)
-    posinfu = signbigu - 1 - ubitmask
-    maxrealu = posinfu - ulpu
-    minrealu = maxrealu + signbigu
-    neginfu = posinfu + signbigu
-    negbigu = neginfu - ulpu
-    qNaNu = posinfu + ubitmask
-    sNaNu = neginfu + ubitmask
+    ulpu%u = ishft (1_INT64, utagsize)
+    smallsubnormalu%u = efsizemask%u + ulpu%u
+    smallnormalu%u = efsizemask%u + ishft (1_INT64, maxubits - 1 - esizemax)
+    signbigu%u = ishft (1_INT64, maxubits - 1)
+    posinfu%u = signbigu%u - 1 - ubitmask%u
+    maxrealu%u = posinfu%u - ulpu%u
+    minrealu%u = maxrealu%u + signbigu%u
+    neginfu%u = posinfu%u + signbigu%u
+    negbigu%u = neginfu%u - ulpu%u
+    qNaNu%u = posinfu%u + ubitmask%u
+    sNaNu%u = neginfu%u + ubitmask%u
     if (utagsize == 1) then
-      negopeninfu = b'1101'
-      posopeninfu = b'0101'
+      negopeninfu%u = b'1101'
+      posopeninfu%u = b'0101'
     else
-      negopeninfu = ishft (b'1111', utagsize - 1)
-      posopeninfu = ishft (b'0111', utagsize - 1)
+      negopeninfu%u = ishft (b'1111', utagsize - 1) !cast binary literal as INT64?
+      posopeninfu%u = ishft (b'0111', utagsize - 1) !cast binary literal as INT64?
     end if
-    negopenzerou = ishft (b'1001', utagsize - 1)
+    negopenzerou%u = ishft (b'1001', utagsize - 1) !cast binary literal as INT64?
     maxreal = 2.0_REAL64**(2.0_REAL64**(esizemax - 1.0_REAL64)) * &
              (2.0_REAL64**(fsizemax)-1.0_REAL64) / &
              (2.0_REAL64**(fsizemax - 1.0_REAL64))
@@ -197,97 +198,97 @@ contains
 
   function Get_esizemask ()
     implicit none
-    integer :: Get_esizemask
+    type (unum_t) :: Get_esizemask
     Get_esizemask = esizemask
   end function Get_esizemask
 
   function Get_fsizemask ()
     implicit none
-    integer :: Get_fsizemask
+    type (unum_t) :: Get_fsizemask
     Get_fsizemask = fsizemask
   end function Get_fsizemask
 
   function Get_efsizemask ()
     implicit none
-    integer (INT64) :: Get_efsizemask
+    type (unum_t) :: Get_efsizemask
     Get_efsizemask = efsizemask
   end function Get_efsizemask
 
   function Get_ubitmask ()
     implicit none
-    integer (INT64) :: Get_ubitmask
+    type (unum_t) :: Get_ubitmask
     Get_ubitmask = ubitmask
   end function Get_ubitmask
 
   function Get_utagmask ()
     implicit none
-    integer (INT64) :: Get_utagmask
+    type (unum_t) :: Get_utagmask
     Get_utagmask = utagmask
   end function Get_utagmask
 
   function Get_ulpu ()
     implicit none
-    integer (INT64) :: Get_ulpu
+    type (unum_t) :: Get_ulpu
     Get_ulpu = ulpu
   end function Get_ulpu
 
   function Get_signbigu ()
     implicit none
-    integer (INT64) :: Get_signbigu
+    type (unum_t) :: Get_signbigu
     Get_signbigu = signbigu
   end function Get_signbigu
 
   function Get_posinfu ()
     implicit none
-    integer (INT64) :: Get_posinfu
+    type (unum_t) :: Get_posinfu
     Get_posinfu = posinfu
   end function Get_posinfu
 
   function Get_neginfu ()
     implicit none
-    integer (INT64) :: Get_neginfu
+    type (unum_t) :: Get_neginfu
     Get_neginfu = neginfu
   end function Get_neginfu
 
   function Get_negbigu ()
     implicit none
-    integer (INT64) :: Get_negbigu
+    type (unum_t) :: Get_negbigu
     Get_negbigu = negbigu
   end function Get_negbigu
 
   function Get_qNaNu ()
     implicit none
-    integer (INT64) :: Get_qNaNu
+    type (unum_t) :: Get_qNaNu
     Get_qNaNu = qNaNu
   end function Get_qNaNu
 
   function Get_sNaNu ()
     implicit none
-    integer (INT64) :: Get_sNaNu
+    type (unum_t) :: Get_sNaNu
     Get_sNaNu = sNaNu
   end function Get_sNaNu
 
   function Get_negopeninfu ()
     implicit none
-    integer (INT64) :: Get_negopeninfu
+    type (unum_t) :: Get_negopeninfu
     Get_negopeninfu = negopeninfu
   end function Get_negopeninfu
 
   function Get_posopeninfu ()
     implicit none
-    integer (INT64) :: Get_posopeninfu
+    type (unum_t) :: Get_posopeninfu
     Get_posopeninfu = posopeninfu
   end function Get_posopeninfu
 
   function Get_negopenzerou ()
     implicit none
-    integer (INT64) :: Get_negopenzerou
+    type (unum_t) :: Get_negopenzerou
     Get_negopenzerou = negopenzerou
   end function
 
   function Get_posbig ()
     implicit none
-    integer (INT64) :: Get_posbig
+    type (unum_t) :: Get_posbig
     Get_posbig = posbig
   end function Get_posbig
 
@@ -299,7 +300,7 @@ contains
 
   function Get_maxrealu ()
     implicit none
-    integer (INT64) :: Get_maxrealu
+    type (unum_t)   :: Get_maxrealu
     Get_maxrealu = maxrealu
   end function Get_maxrealu
 
@@ -311,13 +312,13 @@ contains
 
   function Get_smallsubnormalu ()
     implicit none
-    integer (INT64) :: Get_smallsubnormalu
+    type (unum_t)   :: Get_smallsubnormalu
     Get_smallsubnormalu = smallsubnormalu
   end function Get_smallsubnormalu
 
   function Get_smallnormalu ()
     implicit none
-    integer (INT64) :: Get_smallnormalu
+    type (unum_t)   :: Get_smallnormalu
     Get_smallnormalu = smallnormalu
   end function Get_smallnormalu
 

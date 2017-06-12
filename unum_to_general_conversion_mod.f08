@@ -1,12 +1,16 @@
 module unum_to_general_conversion_mod
   use ISO_FORTRAN_ENV, only : INT64, REAL64
   use IEEE_ARITHMETIC
+  use unum_t_mod
+  use general_interval_t_mod
+  use ubound_t_mod
+  use unum_operator_mod
   use unum_env_mod
   use unum_to_float_mod
 
   private
-  real (REAL64), parameter, public :: CLOSED_END  = 1.0
-  real (REAL64), parameter, public :: OPEN_END = 0.0
+  logical, parameter, public :: CLOSED_END  = .true.
+  logical, parameter, public :: OPEN_END = .false.
   public :: F2g
   public :: U2g
 
@@ -18,87 +22,116 @@ module unum_to_general_conversion_mod
 contains
   function F2g (x)
     implicit none
-    real (REAL64), dimension (2, 2) :: F2g
-    real (REAL64)                   :: x
-    real (REAL64)                   :: NaN
+    real (REAL64), intent (in) :: x
+    type (general_interval_t)  :: F2g
+    real (REAL64)              :: NaN
     NaN = ieee_value (NaN, ieee_quiet_nan)
 
     if (ieee_is_nan (x)) then
-      F2g = reshape ([NaN, NaN, OPEN_END, OPEN_END], shape (F2g))
+      F2g%endpoints = [NaN, NaN]
+      F2g%are_closed = [OPEN_END, OPEN_END]
     else
-      F2g = reshape ([x, x, CLOSED_END, CLOSED_END], shape (F2g))
+      F2g%endpoints = [x, x]
+      F2g%are_closed = [CLOSED_END, CLOSED_END]
     end if
   end function
 
   function Bigu (u)
     implicit none
-    integer (INT64) :: Bigu
-    integer (INT64), intent (in) :: u
+    type (unum_t), intent (in) :: u
+    type (unum_t)              :: expomask_local, fracmask_local
+    type (unum_t)              :: efsizemask_local, ulpu_local
+    type (unum_t)              :: u_efsizeu
+    type (unum_t)              :: Bigu
 
-    Bigu = Expomask (u) + Fracmask (u) + &
-           iand (Get_efsizemask (), u) - Get_ulpu () * &
-           Boole (iand (u, Get_efsizemask ()) == Get_efsizemask ())
+    expomask_local = Expomask (u)
+    fracmask_local = Fracmask (u)
+    efsizemask_local = Get_efsizemask ()
+    ulpu_local = Get_ulpu ()
+    u_efsizeu = iand (efsizemask_local, u)
+
+    Bigu%u = expomask_local%u + &
+             fracmask_local%u + &
+             u_efsizeu%u      - &
+             ulpu_local%u * Boole (u_efsizeu == efsizemask_local)
   end function Bigu
 
   function Big (u)
     implicit none
-    real (REAL64) :: Big
-    integer (INT64), intent (in) :: u
+    type (unum_t), intent (in) :: u
+    real (REAL64)              :: Big
 
-    Big = u2f (Bigu (u))
+    Big = U2f (Bigu (u))
   end function Big
 
   function Unum2g (u)
     implicit none
-    real (REAL64),   dimension (2, 2) :: Unum2g
-    integer (INT64), intent (in)      :: u
-    real (REAL64)                     :: NaN, negative_inf, positive_inf
-    real (REAL64)                     :: temp_x, temp_y
+    type (unum_t), intent (in) :: u
+    type (general_interval_t)  :: Unum2g
+    real (REAL64)              :: NaN, negative_inf, positive_inf
+    real (REAL64)              :: temp_x, temp_y
+    type (unum_t)              :: signmask_local, ubitmask_local, ulpu_local
+    type (unum_t)              :: bigu_temp
+    type (unum_t)              :: u_plus_ulpu
     NaN = ieee_value (NaN, ieee_quiet_nan)
     negative_inf = ieee_value (negative_inf, IEEE_NEGATIVE_INF)
     positive_inf = ieee_value (positive_inf, IEEE_POSITIVE_INF)
 
     if (u == Get_qNaNu () .or. u == Get_sNaNu ()) then
-      Unum2g = reshape ([NaN, NaN, OPEN_END, OPEN_END], shape (Unum2g))
+      Unum2g%endpoints = [NaN, NaN]
+      Unum2g%are_closed = [OPEN_END, OPEN_END]
       return
     else
-      temp_x = u2f (Exact (u))
-      print *, 'temp_x = ', temp_x
-      temp_y = u2f (Exact (u + Get_ulpu ()))
-      print *, 'temp_y = ', temp_y
+      temp_x = U2f (Exact (u))
+      !print *, 'temp_x = ', temp_x
+      ulpu_local = Get_ulpu ()
+      u_plus_ulpu%u = u%u + ulpu_local%u
+      temp_y = U2f (Exact (u_plus_ulpu))
+      !print *, 'temp_y = ', temp_y
     end if
 
     if (IsExQ (u)) then
-      Unum2g = reshape ([temp_x, temp_x, CLOSED_END, CLOSED_END], shape (Unum2g))
-    else if (u == (Bigu (u) + Get_ubitmask ())) then
-      Unum2g = reshape ([Big (u), positive_inf, OPEN_END, OPEN_END], &
-               shape (Unum2g))
-    else if (u == (Signmask (u) + Bigu (u) + Get_ubitmask ())) then
-      Unum2g = reshape ([negative_inf, -Big (u), OPEN_END, OPEN_END], &
-               shape (Unum2g))
-    else if (Signu (u) == 1) then
-      Unum2g = reshape ([temp_y, temp_x, OPEN_END, OPEN_END], shape (Unum2g))
+      Unum2g%endpoints = [temp_x, temp_x]
+      Unum2g%are_closed = [CLOSED_END, CLOSED_END]
     else
-      Unum2g = reshape ([temp_x, temp_y, OPEN_END, OPEN_END], shape (Unum2g))
+      signmask_local = Signmask (u)
+      ubitmask_local = Get_ubitmask ()
+      bigu_temp = Bigu (u)
+      if (u%u == (bigu_temp%u + ubitmask_local%u)) then
+        Unum2g%endpoints = [Big(u), positive_inf]
+        Unum2g%are_closed = [OPEN_END, OPEN_END]
+      else if (u%u == (signmask_local%u + bigu_temp%u + ubitmask_local%u)) then
+        Unum2g%endpoints = [negative_inf, -Big (u)]
+        Unum2g%are_closed = [OPEN_END, OPEN_END]
+      else if (Signi (u) == 1) then
+        Unum2g%endpoints = [temp_y, temp_x]
+        Unum2g%are_closed = [OPEN_END, OPEN_END]
+      else
+        Unum2g%endpoints = [temp_x, temp_y]
+        Unum2g%are_closed = [OPEN_END, OPEN_END]
+      end if
     end if
   end function Unum2g
 
   function Ubound2g (ubound_in)
     implicit none
-    real (REAL64),   dimension (2, 2)           :: Ubound2g
-    integer (INT64), dimension (2), intent (in) :: ubound_in
-    real (REAL64),   dimension (2, 2)           :: gL, gR
-    real (REAL64)                               :: NaN
+    type (ubound_t), intent (in) :: ubound_in
+    type (general_interval_t)    :: Ubound2g
+    type (general_interval_t)    :: gL, gR
+    real (REAL64)                :: NaN
     NaN = ieee_value (NaN, ieee_quiet_nan)
 
-    if (ubound_in(1) == Get_qNaNu () .or. ubound_in(1) == Get_sNaNu () .or. &
-        ubound_in(2) == Get_qNaNu () .or. ubound_in(2) == Get_sNaNu ()) then
-      Ubound2g = reshape ([NaN, NaN, OPEN_END, OPEN_END], shape (Ubound2g))
+    if (ubound_in%ub(1) == Get_qNaNu () .or. &
+        ubound_in%ub(1) == Get_sNaNu () .or. &
+        ubound_in%ub(2) == Get_qNaNu () .or. &
+        ubound_in%ub(2) == Get_sNaNu ()) then
+      Ubound2g%endpoints = [NaN, NaN]
+      Ubound2g%are_closed = [OPEN_END, OPEN_END]
     else
-      gL = Unum2g (ubound_in(1))
-      gR = Unum2g (ubound_in(2))
-      Ubound2g = reshape ([gL(1, 1), gR(2, 1), gL(1, 2), gR(2, 2)], &
-                 shape (Ubound2g))
+      gL = Unum2g (ubound_in%ub(1))
+      gR = Unum2g (ubound_in%ub(2))
+      Ubound2g%endpoints = [gL%endpoints(1), gR%endpoints(2)]
+      Ubound2g%are_closed = [gL%are_closed(1), gR%are_closed(2)]
     end if
   end function Ubound2g
 
